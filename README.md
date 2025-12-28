@@ -1,6 +1,6 @@
-# Mac Battery Utility
+# Voltara
 
-**Mac Battery Utility** is an open-source macOS system utility designed to give users transparent, real-time insight into their MacBook battery health and charging behavior using only public macOS APIs.
+**Voltara** is an open-source macOS system utility designed to give users transparent, real-time insight into their MacBook battery health and charging behavior using only public macOS APIs.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)
@@ -40,8 +40,8 @@ macOS provides only basic battery information—a vague "Battery Health" label a
 
 ### Building
 ```bash
-git clone https://github.com/yourusername/MacBatteryUtility.git
-cd MacBatteryUtility
+git clone https://github.com/yourusername/Voltara.git
+cd Voltara
 swift build
 swift run
 ```

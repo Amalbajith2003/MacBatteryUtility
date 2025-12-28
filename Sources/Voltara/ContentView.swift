@@ -9,9 +9,17 @@ struct ContentView: View {
             if let stats = viewModel.stats {
                 // Header
                 HStack {
-                    Image(systemName: stats.isCharging ? "bolt.batteryblock.fill" : "battery.75")
-                        .font(.largeTitle)
-                        .foregroundColor(stats.isCharging ? .green : .primary)
+                    if let imagePath = Bundle.module.path(forResource: "AppIcon", ofType: "jpg"),
+                       let nsImage = NSImage(contentsOfFile: imagePath) {
+                        Image(nsImage: nsImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 64, height: 64)
+                    } else {
+                        Image(systemName: stats.isCharging ? "bolt.batteryblock.fill" : "battery.75")
+                            .font(.largeTitle)
+                            .foregroundColor(stats.isCharging ? .green : .primary)
+                    }
                     
                     VStack(alignment: .leading) {
                         Text("\(Int(ceil((Double(stats.currentCapacity) / Double(stats.maxCapacity)) * 100)))%")

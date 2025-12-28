@@ -2,7 +2,7 @@
 import SwiftUI
 
 @main
-struct MacBatteryUtilityApp: App {
+struct VoltaraApp: App {
     // Shared state object for the menu bar to ensure persistence
     @StateObject private var menuBarViewModel = BatteryViewModel()
 
