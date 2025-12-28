@@ -87,11 +87,34 @@ struct IOSDeviceView: View {
             
             // Grid
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                MetricCard(title: "Health", value: String(format: "%.1f%%", device.health), icon: "heart.fill", color: (device.health >= 80 ? .green : .orange))
-                MetricCard(title: "Cycles", value: "\(device.cycleCount)", icon: "arrow.triangle.2.circlepath", color: .blue)
-                MetricCard(title: "Capacity", value: "\(device.currentCapacity) mAh", icon: "battery.100", color: .gray)
-                // iOS doesn't easily expose watts/temp via standard CopyValue without debug
-                MetricCard(title: "Design", value: "\(device.designCapacity) mAh", icon: "ruler", color: .purple)
+                // Health
+                if device.maxCapacity > 0 {
+                    MetricCard(title: "Health", value: String(format: "%.1f%%", device.health), icon: "heart.fill", color: (device.health >= 80 ? .green : .orange))
+                } else {
+                    MetricCard(title: "Health", value: "Locked", icon: "lock.fill", color: .gray)
+                }
+                
+                // Cycles
+                if device.cycleCount > 0 {
+                     MetricCard(title: "Cycles", value: "\(device.cycleCount)", icon: "arrow.triangle.2.circlepath", color: .blue)
+                } else {
+                     MetricCard(title: "Cycles", value: "Locked", icon: "lock.fill", color: .gray)
+                }
+                
+                // Capacity
+                if device.maxCapacity > 0 {
+                    MetricCard(title: "Capacity", value: "\(device.currentCapacity) mAh", icon: "battery.100", color: .gray)
+                } else {
+                    // Fallback to displaying just level % if real mAh is hidden
+                    MetricCard(title: "Level", value: "\(device.batteryLevel)%", icon: "battery.100", color: .green)
+                }
+                
+                // Design
+                if device.designCapacity > 0 {
+                    MetricCard(title: "Design", value: "\(device.designCapacity) mAh", icon: "ruler", color: .purple)
+                } else {
+                    MetricCard(title: "Design", value: "Unknown", icon: "questionmark.circle", color: .secondary)
+                }
             }
             
             // Details
@@ -101,15 +124,84 @@ struct IOSDeviceView: View {
                     .padding(.bottom, 4)
                     
                 DetailRow(label: "Name", value: device.name)
-                // DetailRow(label: "Serial", value: device.serialNumber) // Maybe hide serial for privacy/screens
-                DetailRow(label: "Max Capacity", value: "\(device.maxCapacity) mAh")
-                DetailRow(label: "Design Capacity", value: "\(device.designCapacity) mAh")
+                DetailRow(label: "Model", value: device.productType)
+                
+                if device.maxCapacity > 0 {
+                    DetailRow(label: "Max Capacity", value: "\(device.maxCapacity) mAh")
+                } else {
+                    DetailRow(label: "Max Capacity", value: "Restricted by iOS")
+                }
+                
+                if device.designCapacity > 0 {
+                    DetailRow(label: "Design Capacity", value: "\(device.designCapacity) mAh")
+                }
+                
+                // Explain restriction if detected
+                if device.maxCapacity == 0 {
+                   Text("Note: Apple restricts battery health data on newer devices/iOS versions over standard USB connection.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 4)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                
+                // Minimal Debug for other issues
+                /*
+                if !device.debugInfo.isEmpty {
+                   Text("Debug: " + device.debugInfo.replacingOccurrences(of: "\n", with: ", "))
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                        .padding(.top, 4)
+                }
+                */
             }
             .padding()
             .background(Color(nsColor: .controlBackgroundColor))
             .cornerRadius(12)
             
             Spacer()
+        }
+    }
+}
+
+struct MetricCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(color)
+                Text(title)
+                    .foregroundColor(.secondary)
+                    .font(.caption)
+            }
+            Text(value)
+                .font(.title2)
+                .bold()
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .cornerRadius(10)
+        .shadow(radius: 1)
+    }
+}
+
+struct DetailRow: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(label)
+                .foregroundColor(.secondary)
+            Spacer()
+            Text(value)
+                .font(.system(.body, design: .monospaced))
         }
     }
 }

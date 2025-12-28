@@ -56,7 +56,7 @@ typealias AMDeviceDisconnectFunc = @convention(c) (_ device: UnsafeMutableRawPoi
 typealias AMDeviceCopyValueFunc = @convention(c) (
     _ device: UnsafeMutableRawPointer,
     _ domain: CFString?,
-    _ key: CFString
+    _ key: CFString?
 ) -> Unmanaged<CFTypeRef>?
 
 // AMDeviceCopyDeviceIdentifier(device) -> CFString

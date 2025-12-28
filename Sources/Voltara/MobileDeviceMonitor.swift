@@ -1,4 +1,3 @@
-
 import Foundation
 import Combine
 
@@ -159,6 +158,8 @@ class MobileDeviceMonitor: ObservableObject, @unchecked Sendable {
         let uuid = (copyId(device)?.takeRetainedValue() as String?) ?? UUID().uuidString
         let name = (getValue("DeviceName") as? String) ?? "Unknown iPhone"
         let serial = (getValue("SerialNumber") as? String) ?? "Unknown"
+        let productType = (getValue("ProductType") as? String) ?? "Unknown"
+        var debugLog = "Type: \(productType)\n"
         
         // Initialize vars
         var cycleCount = 0
@@ -168,32 +169,73 @@ class MobileDeviceMonitor: ObservableObject, @unchecked Sendable {
         var isCharging = false
         var batteryLevel = 0
         
-        // Strategy 1: GasGaugeCapability (Most detailed)
-        if let gasGauge = getValue("GasGaugeCapability", domain: "com.apple.mobile.battery") as? [String: Any] {
-            cycleCount = (gasGauge["CycleCount"] as? Int) ?? 0
-            designCap = (gasGauge["DesignCapacity"] as? Int) ?? 0
-            maxCap = (gasGauge["AppleRawMaxCapacity"] as? Int) ?? (gasGauge["AppleMaxCapacity"] as? Int) ?? 0
-            currentCap = (gasGauge["AppleRawCurrentCapacity"] as? Int) ?? (gasGauge["AppleCurrentCapacity"] as? Int) ?? 0
-            isCharging = (gasGauge["ExternalConnected"] as? Bool) ?? false
+        // Debug: Dump Domain
+        let batteryDomainName = "com.apple.mobile.battery"
+        if let domainDict = copyValue(device, batteryDomainName as CFString, nil as CFString?)?.takeRetainedValue() as? [String: Any] {
+            debugLog += "DomainKeys: \(domainDict.keys.joined(separator: ","))\n"
+            
+            // Extract directly from domain dict to be sure
+            cycleCount = (domainDict["CycleCount"] as? Int) ?? 0
+            
+            // Debug GasGauge Type
+            if let ggVal = domainDict["GasGaugeCapability"] {
+                debugLog += "GGType: \(type(of: ggVal))\n"
+                if let gg = ggVal as? [String: Any] {
+                     maxCap = (gg["AppleRawMaxCapacity"] as? Int) ?? (gg["AppleMaxCapacity"] as? Int) ?? 0
+                     currentCap = (gg["AppleRawCurrentCapacity"] as? Int) ?? (gg["AppleCurrentCapacity"] as? Int) ?? 0
+                     designCap = (gg["DesignCapacity"] as? Int) ?? 0
+                     cycleCount = (gg["CycleCount"] as? Int) ?? cycleCount
+                     debugLog += "GG: Dict Found. rawMax: \(maxCap)\n"
+                } else {
+                     // GG is likely Bool (True). Keys might be at top level but HIDDEN from enumeration?
+                     debugLog += "GG: Bool/Other\n"
+                }
+            }
+            
+            // Try explicit hidden keys in com.apple.mobile.battery
+            if maxCap == 0 {
+                 maxCap = (getValue("AppleRawMaxCapacity", domain: batteryDomainName) as? Int) ?? 0
+                 if maxCap == 0 {
+                     maxCap = (getValue("NominalChargeCapacity", domain: batteryDomainName) as? Int) ?? 0
+                 }
+                 debugLog += "ExplicitMax: \(maxCap)\n"
+            }
+            if currentCap == 0 {
+                 currentCap = (getValue("AppleRawCurrentCapacity", domain: batteryDomainName) as? Int) ?? 0
+                 if currentCap == 0 {
+                     currentCap = (getValue("BatteryCurrentCapacity", domain: batteryDomainName) as? Int) ?? 0
+                 }
+            }
+            if designCap == 0 {
+                 designCap = (getValue("DesignCapacity", domain: batteryDomainName) as? Int) ?? 0
+            }
+            if cycleCount == 0 {
+                 cycleCount = (getValue("CycleCount", domain: batteryDomainName) as? Int) ?? 0
+            }
+            
+            if maxCap == 0 {
+                // Try direct keys in domain (BatteryMaximumCapacity was missing in log, but check anyway)
+                maxCap = (domainDict["BatteryMaximumCapacity"] as? Int) ?? 0
+                // If maxCap is 0, this 'rawLevel' is likely Percentage (0-100)
+                if maxCap == 0 { 
+                    batteryLevel = (domainDict["BatteryCurrentCapacity"] as? Int) ?? currentCap 
+                }
+            }
+        } else {
+            debugLog += "Domain: Nil\n"
         }
         
-        // Strategy 2: IOBatteryInfo (Alternative dict)
-        if maxCap == 0, let batteryInfo = getValue("IOBatteryInfo", domain: "com.apple.mobile.battery") as? [String: Any] {
-             cycleCount = (batteryInfo["CycleCount"] as? Int) ?? cycleCount
-             maxCap = (batteryInfo["Capacity"] as? Int) ?? maxCap
-             currentCap = (batteryInfo["CurrentCapacity"] as? Int) ?? currentCap
-             isCharging = (batteryInfo["ExternalConnected"] as? Bool) ?? isCharging
-        }
+        let batteryDomain = batteryDomainName // Alias
         
-        // Strategy 3: Individual Keys (Fallback)
-        let batteryDomain = "com.apple.mobile.battery"
+        // Fallback: Global/Root Keys
+        if maxCap == 0 {
+            let globalMax = getValue("BatteryMaximumCapacity") as? Int
+            debugLog += "GlobalMax: \(globalMax ?? -1)\n"
+            maxCap = globalMax ?? 0
+        }
         
         if cycleCount == 0 {
-            cycleCount = (getValue("CycleCount", domain: batteryDomain) as? Int) ?? 0
-
-}
-        if maxCap == 0 {
-            maxCap = (getValue("BatteryMaximumCapacity", domain: batteryDomain) as? Int) ?? (getValue("BatteryMaximumCapacity") as? Int) ?? 0
+             cycleCount = (getValue("CycleCount", domain: batteryDomain) as? Int) ?? (getValue("CycleCount") as? Int) ?? 0
         }
         if currentCap == 0 {
             currentCap = (getValue("BatteryCurrentCapacity", domain: batteryDomain) as? Int) ?? (getValue("BatteryCurrentCapacity") as? Int) ?? 0
@@ -202,8 +244,15 @@ class MobileDeviceMonitor: ObservableObject, @unchecked Sendable {
              isCharging = (getValue("BatteryIsCharging", domain: batteryDomain) as? Bool) ?? (getValue("BatteryIsCharging") as? Bool) ?? false
         }
         
+        debugLog += "Fallback: Cyc: \(cycleCount), Max: \(maxCap)\n"
+        
         // Fixups
-        if designCap == 0 { designCap = maxCap } // Fallback
+        if designCap == 0 { 
+            designCap = estimateDesignCapacity(productType: productType)
+            debugLog += "Est Design: \(designCap)"
+        } else {
+            debugLog += "Read Design: \(designCap)"
+        }
         
         // Calculate Level
         // If we have mAh values
@@ -212,27 +261,33 @@ class MobileDeviceMonitor: ObservableObject, @unchecked Sendable {
         } else {
             // These might be just percentage values
             batteryLevel = currentCap
-            // approximate mAh for display if we only got %?
-            // Actually, if we only got %, we can't show mAh.
-            // Let's hide 0 mAh if invalid.
         }
         
         return IOSDevice(
             id: uuid,
             name: name,
             serialNumber: serial,
+            productType: productType,
             cycleCount: cycleCount,
             designCapacity: designCap,
             currentCapacity: currentCap,
             maxCapacity: maxCap,
             batteryLevel: batteryLevel,
-            isCharging: isCharging
+            isCharging: isCharging,
+            debugInfo: debugLog
         )
     }
     private func estimateDesignCapacity(productType: String) -> Int {
         // Approximate Design Capacities (mAh)
         let map: [String: Int] = [
-            "iPhone16,2": 4441, "iPhone16,1": 3290, // 15 Pro Max / 15 Pro (Approx)
+            // iPhone 16 Series
+            "iPhone17,1": 3582, // 16 Pro (Approx)
+            "iPhone17,2": 4685, // 16 Pro Max (Approx)
+            "iPhone17,3": 3561, // 16
+            "iPhone17,4": 4674, // 16 Plus
+            
+            // iPhone 15 Series
+            "iPhone16,2": 4441, "iPhone16,1": 3290, // 15 Pro Max / 15 Pro
             "iPhone15,5": 4323, "iPhone15,4": 4323, // 15 Plus / 15
             "iPhone15,3": 4323, "iPhone15,2": 3200, // 14 Pro Max / 14 Pro
             "iPhone14,8": 4325, "iPhone14,7": 3227, // 14 Plus / 14
