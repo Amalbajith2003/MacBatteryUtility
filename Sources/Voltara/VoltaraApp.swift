@@ -7,7 +7,7 @@ struct VoltaraApp: App {
     @StateObject private var menuBarViewModel = BatteryViewModel()
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: "MainWindow") {
             ContentView()
                 .frame(minWidth: 400, minHeight: 300)
         }

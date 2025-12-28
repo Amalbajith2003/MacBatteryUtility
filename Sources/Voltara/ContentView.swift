@@ -9,17 +9,9 @@ struct ContentView: View {
             if let stats = viewModel.stats {
                 // Header
                 HStack {
-                    if let imagePath = Bundle.module.path(forResource: "AppIcon", ofType: "jpg"),
-                       let nsImage = NSImage(contentsOfFile: imagePath) {
-                        Image(nsImage: nsImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 64, height: 64)
-                    } else {
-                        Image(systemName: stats.isCharging ? "bolt.batteryblock.fill" : "battery.75")
-                            .font(.largeTitle)
-                            .foregroundColor(stats.isCharging ? .green : .primary)
-                    }
+                    Image(systemName: stats.isCharging ? "bolt.batteryblock.fill" : "battery.75")
+                        .font(.largeTitle)
+                        .foregroundColor(stats.isCharging ? .green : .primary)
                     
                     VStack(alignment: .leading) {
                         Text("\(Int(ceil((Double(stats.currentCapacity) / Double(stats.maxCapacity)) * 100)))%")
@@ -50,6 +42,14 @@ struct ContentView: View {
                     DetailRow(label: "Design Capacity", value: "\(stats.designCapacity) mAh")
                     DetailRow(label: "Max Capacity", value: "\(stats.maxCapacity) mAh")
                     DetailRow(label: "Voltage / Amperage", value: "\(stats.voltage) mV / \(stats.amperage) mA")
+                    
+                    if stats.timeRemaining > -1 && stats.timeRemaining < 65535 {
+                        let hours = stats.timeRemaining / 60
+                        let mins = stats.timeRemaining % 60
+                        DetailRow(label: stats.isCharging ? "Time to Full" : "Time to Empty", value: String(format: "%d:%02dh", hours, mins))
+                    } else {
+                         DetailRow(label: "Time Estimate", value: "Calculating...")
+                    }
                 }
                 .padding()
                 .background(Color(nsColor: .controlBackgroundColor))

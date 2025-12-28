@@ -12,6 +12,7 @@ struct BatteryStats: CustomStringConvertible {
     let amperage: Int           // mA (negative = discharging)
     let isCharging: Bool
     let temperature: Double     // Celsius
+    let timeRemaining: Int      // Minutes (-1 if unknown)
     
     var health: Double {
         guard designCapacity > 0 else { return 100.0 }
@@ -62,6 +63,20 @@ class BatteryService {
         let tempRaw = props["Temperature"] as? Int ?? 0
         let temperature = Double(tempRaw) / 100.0
         
+        // Time Remaining Logic
+        // 65535 often means "calculating" or "unknown"
+        var timeRemaining = (props["TimeRemaining"] as? Int) ?? -1
+        
+        if timeRemaining == 65535 || timeRemaining == -1 {
+            if isCharging {
+                timeRemaining = (props["AvgTimeToFull"] as? Int) ?? (props["InstantTimeToFull"] as? Int) ?? -1
+            } else {
+                timeRemaining = (props["AvgTimeToEmpty"] as? Int) ?? (props["InstantTimeToEmpty"] as? Int) ?? -1
+            }
+        }
+        
+        if timeRemaining == 65535 { timeRemaining = -1 }
+        
         return BatteryStats(
             currentCapacity: currentCap,
             maxCapacity: maxCap,
@@ -70,7 +85,8 @@ class BatteryService {
             voltage: voltage,
             amperage: amperage,
             isCharging: isCharging,
-            temperature: temperature
+            temperature: temperature,
+            timeRemaining: timeRemaining
         )
     }
     

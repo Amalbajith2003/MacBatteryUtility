@@ -2,6 +2,7 @@
 import SwiftUI
 
 struct MenuBarView: View {
+    @Environment(\.openWindow) private var openWindow
     @ObservedObject var viewModel: BatteryViewModel
     
     var body: some View {
@@ -32,13 +33,9 @@ struct MenuBarView: View {
                 
                 Divider()
                 
-                Button("Open Open Battery Utility") {
+                Button("Open Voltara") {
                     NSApp.activate(ignoringOtherApps: true)
-                    // In a WindowGroup app, the main window is usually already available or can be brought to front.
-                    // This is a simple handler.
-                    if let window = NSApp.windows.first {
-                        window.makeKeyAndOrderFront(nil)
-                    }
+                    openWindow(id: "MainWindow")
                 }
                 .keyboardShortcut("o")
                 
