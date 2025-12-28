@@ -6,62 +6,41 @@ struct ContentView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            if let stats = viewModel.stats {
-                // Header
-                HStack {
-                    Image(systemName: stats.isCharging ? "bolt.batteryblock.fill" : "battery.75")
-                        .font(.largeTitle)
-                        .foregroundColor(stats.isCharging ? .green : .primary)
-                    
-                    VStack(alignment: .leading) {
-                        Text("\(Int(ceil((Double(stats.currentCapacity) / Double(stats.maxCapacity)) * 100)))%")
-                            .font(.system(size: 32, weight: .bold))
-                        Text(stats.isCharging ? "Charging" : "Discharging")
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding()
-                .background(Color(nsColor: .controlBackgroundColor))
-                .cornerRadius(12)
-                
-                // Grid
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    MetricCard(title: "Health", value: String(format: "%.1f%%", stats.health), icon: "heart.fill", color: .green)
-                    MetricCard(title: "Cycles", value: "\(stats.cycleCount)", icon: "arrow.triangle.2.circlepath", color: .blue)
-                    MetricCard(title: "Power", value: String(format: "%.1f W", stats.watts), icon: "bolt.fill", color: .yellow)
-                    MetricCard(title: "Temp", value: String(format: "%.1f°C", stats.temperature), icon: "thermometer", color: .orange)
-                }
-                
-                // Details
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Technical Details")
-                        .font(.headline)
-                        .padding(.bottom, 4)
-                        
-                    DetailRow(label: "Design Capacity", value: "\(stats.designCapacity) mAh")
-                    DetailRow(label: "Max Capacity", value: "\(stats.maxCapacity) mAh")
-                    DetailRow(label: "Voltage / Amperage", value: "\(stats.voltage) mV / \(stats.amperage) mA")
-                    
-                    if stats.timeRemaining > -1 && stats.timeRemaining < 65535 {
-                        let hours = stats.timeRemaining / 60
-                        let mins = stats.timeRemaining % 60
-                        DetailRow(label: stats.isCharging ? "Time to Full" : "Time to Empty", value: String(format: "%d:%02dh", hours, mins))
-                    } else {
-                         DetailRow(label: "Time Estimate", value: "Calculating...")
+            // Device Selector (Only if iOS devices connected)
+            if !viewModel.iosDevices.isEmpty {
+                Picker("Select Device", selection: $selectedDeviceId) {
+                    Text("This Mac").tag("mac")
+                    ForEach(viewModel.iosDevices) { device in
+                        Text(device.name).tag(device.id)
                     }
                 }
-                .padding()
-                .background(Color(nsColor: .controlBackgroundColor))
-                .cornerRadius(12)
-                
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+            }
+            
+            if selectedDeviceId == "mac" {
+                MacBatteryView(stats: viewModel.stats)
+            } else if let device = viewModel.iosDevices.first(where: { $0.id == selectedDeviceId }) {
+                IOSDeviceView(device: device)
             } else {
-                ProgressView("Loading Battery Data...")
+                // Fallback if device disconnected while selected
+                MacBatteryView(stats: viewModel.stats)
             }
         }
         .padding()
         .frame(width: 450)
+        .onAppear {
+             // Reset to mac if selection invalid, or keep sticky
+        }
+        .onChange(of: viewModel.iosDevices.map { $0.id }) { _ in
+            // If selected device removed, switch to Mac
+            if selectedDeviceId != "mac" && !viewModel.iosDevices.contains(where: { $0.id == selectedDeviceId }) {
+                selectedDeviceId = "mac"
+            }
+        }
     }
+    
+    @State private var selectedDeviceId: String = "mac"
 }
 
 struct MetricCard: View {

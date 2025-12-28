@@ -5,9 +5,12 @@ import Combine
 @MainActor
 class BatteryViewModel: ObservableObject {
     @Published var stats: BatteryStats?
+    @Published var iosDevices: [IOSDevice] = []
     
     private let service = BatteryService()
+    private let iosMonitor = MobileDeviceMonitor()
     private var timer: Timer?
+    private var cancellables = Set<AnyCancellable>()
     
     var healthColor: String {
         guard let health = stats?.health else { return "gray" }
@@ -19,6 +22,12 @@ class BatteryViewModel: ObservableObject {
     init() {
         refresh()
         startPolling()
+        
+        // Forward iosMonitor updates
+        iosMonitor.$connectedDevices
+            .receive(on: RunLoop.main)
+            .assign(to: \.iosDevices, on: self)
+            .store(in: &cancellables)
     }
     
     func startPolling() {
@@ -37,5 +46,8 @@ class BatteryViewModel: ObservableObject {
         if let newStats = service.getStats() {
             self.stats = newStats
         }
+        
+        // Should we trigger iosMonitor scan? 
+        // Monitor is event driven (USB insert), but we could add manual refresh if needed.
     }
 }

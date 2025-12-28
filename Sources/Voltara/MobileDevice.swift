@@ -9,17 +9,17 @@ typealias AMDeviceNotificationRef = NSObject
 
 // Function pointer define for the callback
 typealias AMDeviceNotificationCallback = @convention(c) (
-    _ notification: UnsafeMutablePointer<AMDeviceNotification>,
+    _ notification: UnsafeMutableRawPointer,
     _ cookie: UnsafeMutableRawPointer?
 ) -> Void
 
 // Structure for the notification payload
+// Structure for the notification payload
 struct AMDeviceNotification {
-    var unknown0: UInt32
     var device: UnsafeMutableRawPointer // actually AMDeviceRef
-    var unknown1: UInt32 
-    var unknown2: UInt32 
-    var subscription: UnsafeMutableRawPointer // actually AMDeviceNotificationRef
+    var msg: UInt32                     // 1=Connected, 2=Disconnected, 3=Unsubscribed
+    private var pad: UInt32             // Alignment padding
+    var subscription: UnsafeMutableRawPointer? // actually AMDeviceNotificationRef
 }
 
 // MARK: - Function Signatures (for dlsym)
@@ -30,7 +30,7 @@ struct AMDeviceNotification {
 
 // AMDeviceNotificationSubscribe(callback, 0, 0, context, &notification)
 typealias AMDeviceNotificationSubscribeFunc = @convention(c) (
-    _ callback: @escaping AMDeviceNotificationCallback,
+    _ callback: AMDeviceNotificationCallback,
     _ unused0: UInt32,
     _ unused1: UInt32,
     _ cookie: UnsafeMutableRawPointer?,
