@@ -63,9 +63,28 @@ class BatteryViewModel: ObservableObject {
         // 1. Add Mac
         if let mac = stats {
             let level = Int(ceil((Double(mac.currentCapacity) / Double(mac.maxCapacity)) * 100))
-            let timeText = (mac.timeRemaining > 0 && mac.timeRemaining < 6000)
-                ? (mac.isCharging ? "~\(mac.timeRemaining) min to full" : "~\(mac.timeRemaining) min remaining")
-                : (mac.isCharging ? "Calculating..." : "Battery Power")
+            
+            // Record History
+            HistoryManager.shared.addPoint(deviceId: "mac_main", level: level)
+
+            var timeText = ""
+            if mac.isCharging {
+                if level >= 100 {
+                    timeText = "Fully Charged"
+                } else if mac.timeRemaining > 0 && mac.timeRemaining < 6000 {
+                    timeText = "~\(mac.timeRemaining) min to full"
+                } else if level >= 99 {
+                    timeText = "Almost Full"
+                } else {
+                    timeText = "Calculating..."
+                }
+            } else {
+                if mac.timeRemaining > 0 && mac.timeRemaining < 6000 {
+                    timeText = "~\(mac.timeRemaining) min remaining"
+                } else {
+                    timeText = "Battery Power"
+                }
+            }
                 
             let macModel = DeviceDisplayModel(
                 id: "mac_main",
@@ -83,6 +102,9 @@ class BatteryViewModel: ObservableObject {
         
         // 2. Add iOS Devices
         for device in iosDevices {
+            // Record History
+            HistoryManager.shared.addPoint(deviceId: device.id, level: device.batteryLevel)
+            
             let isLocked = device.maxCapacity == 0
             
             // Determine Color

@@ -10,7 +10,7 @@ struct DeviceDetailsView: View {
     
     var body: some View {
         ZStack {
-            Theme.background(for: .light)
+            Theme.background(for: colorScheme)
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -44,7 +44,7 @@ struct DeviceDetailsView: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 20)
-                .background(Theme.background(for: .light))
+                .background(Theme.background(for: colorScheme))
                 
                 ScrollView {
                     VStack(spacing: 24) {
@@ -126,7 +126,7 @@ struct DeviceDetailsView: View {
                                     .foregroundColor(.secondary)
                             }
                             .padding(20)
-                            .background(Color.white.opacity(0.5)) // Slightly distinct header
+                            .background(Color.white.opacity(0.05)) // Slightly distinct header
                             
                             Divider()
                             
@@ -160,11 +160,11 @@ struct DeviceDetailsView: View {
                                     icon: "power",
                                     label: "Voltage",
                                     subLabel: "Instantaneous",
-                                    value: String(format: "%.2f V", mac.voltage / 1000.0)
+                                    value: String(format: "%.2f V", Double(mac.voltage) / 1000.0)
                                 )
                             }
                         }
-                        .background(Theme.surface(for: .light))
+                        .background(Theme.surface(for: colorScheme))
                         .cornerRadius(24)
                         .padding(.horizontal, 16)
                         .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
@@ -175,11 +175,13 @@ struct DeviceDetailsView: View {
                                 .font(.system(size: 16, weight: .bold))
                                 .padding(.bottom, 16)
                             
-                            HStack(alignment: .bottom, spacing: 6) {
-                                ForEach(0..<8) { i in
+                            let history = HistoryManager.shared.getHistory(for: device.id)
+                            HStack(alignment: .bottom, spacing: 2) {
+                                ForEach(0..<24) { i in
+                                    let h = getBarHeight(history: history, index: i)
                                     RoundedRectangle(cornerRadius: 2)
-                                        .fill(Theme.primary.opacity(0.2))
-                                        .frame(height: CGFloat([40, 35, 30, 50, 80, 75, 60, 45][i]))
+                                        .fill(h > 0 ? Theme.primary.opacity(0.8) : Color.primary.opacity(0.05))
+                                        .frame(height: CGFloat(max(4, h)))
                                         .frame(maxWidth: .infinity)
                                 }
                             }
@@ -195,7 +197,7 @@ struct DeviceDetailsView: View {
                             .padding(.top, 8)
                         }
                         .padding(20)
-                        .background(Theme.surface(for: .light))
+                        .background(Theme.surface(for: colorScheme))
                         .cornerRadius(24)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 40)
@@ -237,6 +239,19 @@ struct DeviceDetailsView: View {
         if let ios = iosDevice { return ios.maxCapacity > 0 ? "\(ios.maxCapacity) mAh" : "Restricted" }
         return "--"
     }
+    
+    func getBarHeight(history: [HistoryPoint], index: Int) -> Double {
+        let now = Date()
+        let hoursAgo = 23 - index
+        let end = now.addingTimeInterval(TimeInterval(-hoursAgo * 3600))
+        let start = end.addingTimeInterval(-3600)
+        
+        let points = history.filter { $0.date >= start && $0.date <= end }
+        if points.isEmpty { return 0 }
+        
+        let avg = Double(points.reduce(0) { $0 + $1.level }) / Double(points.count)
+        return avg
+    }
 }
 
 struct DetailedStatCard: View {
@@ -246,6 +261,8 @@ struct DetailedStatCard: View {
     let title: String
     let value: String
     let subValue: String
+    
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -272,7 +289,7 @@ struct DetailedStatCard: View {
             }
         }
         .padding(16)
-        .background(Theme.surface(for: .light))
+        .background(Theme.surface(for: colorScheme))
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
         .frame(maxWidth: .infinity)

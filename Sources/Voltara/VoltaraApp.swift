@@ -9,13 +9,11 @@ struct VoltaraApp: App {
     var body: some Scene {
         WindowGroup(id: "MainWindow") {
             ContentView()
-                .frame(minWidth: 400, minHeight: 300)
         }
-        .windowResizability(.contentSize)
         
         MenuBarExtra("Battery Utility", systemImage: "bolt.batteryblock.fill") {
              MenuBarView(viewModel: menuBarViewModel)
         }
-        .menuBarExtraStyle(.window)
+        .menuBarExtraStyle(.menu)
     }
 }
